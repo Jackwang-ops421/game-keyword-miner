@@ -8,8 +8,6 @@ if (!DATABASE_URL) {
 
 const sql = neon(DATABASE_URL)
 
-export { sql }
-
 // Score calculation
 function calculateScore(input: any): any {
   let freshnessScore = 0
@@ -81,21 +79,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { status, platform, minScore, limit = 100 } = req.query
+    const { status, platform, minScore, limit } = req.query
+    const limitNum = Number(limit) || 100
 
-    let query = sql`SELECT * FROM candidates WHERE 1=1`
+    let candidates: any[] = []
 
-    if (status) {
-      query = sql`${query} AND status = ${status}`
+    // Build query based on filters
+    if (status && platform) {
+      candidates = await sql`SELECT * FROM candidates WHERE status = ${status} AND source_platform = ${platform} ORDER BY discovered_at DESC LIMIT ${limitNum}`
+    } else if (status) {
+      candidates = await sql`SELECT * FROM candidates WHERE status = ${status} ORDER BY discovered_at DESC LIMIT ${limitNum}`
+    } else if (platform) {
+      candidates = await sql`SELECT * FROM candidates WHERE source_platform = ${platform} ORDER BY discovered_at DESC LIMIT ${limitNum}`
+    } else {
+      candidates = await sql`SELECT * FROM candidates ORDER BY discovered_at DESC LIMIT ${limitNum}`
     }
-
-    if (platform) {
-      query = sql`${query} AND source_platform = ${platform}`
-    }
-
-    query = sql`${query} ORDER BY discovered_at DESC LIMIT ${Number(limit)}`
-
-    const candidates = await query
 
     const withScores = candidates.map((c: any) => {
       const score = calculateScore({
