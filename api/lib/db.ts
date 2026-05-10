@@ -2,6 +2,8 @@ import { neon } from '@neondatabase/serverless'
 
 const sql = neon(process.env.DATABASE_URL!)
 
+export { sql }
+
 // Initialize database tables
 export async function initializeDatabase() {
   // Create candidates table
@@ -102,5 +104,3 @@ export async function initializeDatabase() {
     ON CONFLICT DO NOTHING
   `
 }
-
-export { sql }
