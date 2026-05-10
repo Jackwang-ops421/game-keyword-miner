@@ -1,7 +1,14 @@
-import { sql } from '../lib/db'
+import { neon } from '@neondatabase/serverless'
+
+const DATABASE_URL = process.env.DATABASE_URL
+
+if (!DATABASE_URL) {
+  throw new Error('DATABASE_URL environment variable is not set')
+}
+
+const sql = neon(DATABASE_URL)
 
 export default async function handler(req, res) {
-  // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -11,8 +18,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Initialize database
-    const createCandidates = await sql`
+    // Create candidates table
+    await sql`
       CREATE TABLE IF NOT EXISTS candidates (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -40,7 +47,8 @@ export default async function handler(req, res) {
       )
     `
 
-    const createSocialMetrics = await sql`
+    // Create social_metrics table
+    await sql`
       CREATE TABLE IF NOT EXISTS social_metrics (
         id SERIAL PRIMARY KEY,
         candidate_id INTEGER REFERENCES candidates(id) ON DELETE CASCADE,
@@ -56,7 +64,8 @@ export default async function handler(req, res) {
       )
     `
 
-    const createPlatforms = await sql`
+    // Create platforms table
+    await sql`
       CREATE TABLE IF NOT EXISTS platforms (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -74,7 +83,8 @@ export default async function handler(req, res) {
       )
     `
 
-    const createSyncLogs = await sql`
+    // Create sync_logs table
+    await sql`
       CREATE TABLE IF NOT EXISTS sync_logs (
         id SERIAL PRIMARY KEY,
         platform VARCHAR(100),
@@ -106,7 +116,7 @@ export default async function handler(req, res) {
       message: 'Database initialized',
       tables: ['candidates', 'social_metrics', 'platforms', 'sync_logs']
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Init error:', error)
     return res.status(500).json({ error: error.message })
   }
