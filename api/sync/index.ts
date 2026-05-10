@@ -4,8 +4,6 @@ const DATABASE_URL = process.env.DATABASE_URL
 if (!DATABASE_URL) throw new Error('DATABASE_URL not set')
 const sql = neon(DATABASE_URL)
 
-export { sql }
-
 export async function getSyncLogs(limit = 50) {
   const logs = await sql`SELECT * FROM sync_logs ORDER BY created_at DESC LIMIT ${limit}`
   return logs
@@ -19,9 +17,7 @@ export async function syncPlatform(platform: string) {
   let errorMessage = ''
 
   try {
-    // Check if it is itch.io
     if (platform.toLowerCase().includes('itch')) {
-      // Try to fetch RSS
       try {
         const feedUrl = 'https://itch.io/games/newest/atom'
         const response = await fetch(feedUrl, {
@@ -33,7 +29,6 @@ export async function syncPlatform(platform: string) {
 
         if (response.ok) {
           const text = await response.text()
-          // Simple parsing - look for entry tags
           const entries = text.match(/<entry>[\s\S]*?<\/entry>/gi) || []
           itemsFound = entries.length
 
@@ -49,7 +44,6 @@ export async function syncPlatform(platform: string) {
 
             const normalizedName = title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
 
-            // Check duplicate
             const existing = await sql`SELECT id FROM candidates WHERE normalized_name = ${normalizedName} AND source_platform = 'itch.io' LIMIT 1`
 
             if (existing.length > 0) {
@@ -57,7 +51,6 @@ export async function syncPlatform(platform: string) {
               continue
             }
 
-            // Insert
             await sql`
               INSERT INTO candidates (
                 name, original_title, normalized_name, source_platform, source_url,
@@ -77,7 +70,6 @@ export async function syncPlatform(platform: string) {
       }
     }
 
-    // Update platform sync status
     await sql`
       UPDATE platforms SET
         last_sync_at = NOW(),
@@ -102,4 +94,38 @@ export async function syncPlatform(platform: string) {
   `
 
   return { platform, duration, itemsFound, itemsAdded, itemsDuplicated, error: errorMessage }
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+
+  try {
+    if (req.method === 'GET') {
+      const { limit } = req.query
+      const logs = await getSyncLogs(Number(limit) || 50)
+      return res.json(logs)
+    }
+
+    if (req.method === 'POST') {
+      const { platform } = req.body
+
+      if (!platform) {
+        return res.status(400).json({ error: 'Platform is required' })
+      }
+
+      const result = await syncPlatform(platform)
+      return res.json({ success: true, log: result })
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' })
+  } catch (error: any) {
+    console.error('Sync error:', error)
+    return res.status(500).json({ error: error.message })
+  }
 }
