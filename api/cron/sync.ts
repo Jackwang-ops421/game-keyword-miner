@@ -113,7 +113,7 @@ export default async function handler(req, res) {
       try {
         console.log(`Syncing ${name}...`)
         const result = await syncPlatform(name)
-        results.push({ platform: name, ...result })
+        results.push({ ...result, platform: name })
       } catch (error: any) {
         console.error(`Failed to sync ${name}:`, error.message)
         results.push({ platform: name, error: error.message })
