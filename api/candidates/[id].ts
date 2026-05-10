@@ -1,5 +1,8 @@
-import { sql } from '../../lib/db'
-import { calculateScore, normalizeTitle, isValidTitle, getRecencyLevel } from '../../lib/score'
+import { neon } from '@neondatabase/serverless'
+
+const DATABASE_URL = process.env.DATABASE_URL
+if (!DATABASE_URL) throw new Error('DATABASE_URL not set')
+const sql = neon(DATABASE_URL)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -20,7 +23,6 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      // Get single candidate
       const candidates = await sql`SELECT * FROM candidates WHERE id = ${candidateId}`
 
       if (candidates.length === 0) {
@@ -28,25 +30,8 @@ export default async function handler(req, res) {
       }
 
       const c = candidates[0]
-
-      // Get social metrics
       const metrics = await sql`SELECT * FROM social_metrics WHERE candidate_id = ${candidateId}`
       const social = metrics[0] || {}
-
-      const score = calculateScore({
-        publishedAt: c.published_at,
-        discoveredAt: c.discovered_at,
-        youtubeVideos7d: social.youtube_videos_7d,
-        topYoutubeViews: social.top_youtube_views,
-        hasInfluencerVideo: social.has_influencer_video,
-        redditPosts7d: social.reddit_posts_7d,
-        topRedditUpvotes: social.top_reddit_upvotes,
-        tiktokSignal: social.tiktok_signal,
-        discordSignal: social.discord_signal,
-        platformReviews7d: social.platform_reviews_7d,
-        canEmbed: c.can_embed,
-        playableInBrowser: c.playable_in_browser,
-      })
 
       return res.json({
         id: c.id,
@@ -72,7 +57,6 @@ export default async function handler(req, res) {
         decision: c.decision,
         createdAt: c.created_at,
         updatedAt: c.updated_at,
-        score,
         social: {
           youtubeVideos7d: social.youtube_videos_7d,
           topYoutubeViews: social.top_youtube_views,
@@ -106,7 +90,6 @@ export default async function handler(req, res) {
         social,
       } = req.body
 
-      // Update candidate
       const updated = await sql`
         UPDATE candidates SET
           name = COALESCE(${name}, name),
@@ -122,42 +105,23 @@ export default async function handler(req, res) {
           platform_comments = COALESCE(${platformComments}, platform_comments),
           status = COALESCE(${status}, status),
           notes = COALESCE(${notes}, notes),
-          recency_level = ${getRecencyLevel(publishedAt, new Date().toISOString())},
           updated_at = NOW()
         WHERE id = ${candidateId}
         RETURNING *
       `
 
-      // Update social metrics if provided
       if (social) {
         await sql`
           INSERT INTO social_metrics (
-            candidate_id,
-            youtube_videos_7d,
-            top_youtube_views,
-            top_youtube_comments,
-            has_influencer_video,
-            reddit_posts_7d,
-            top_reddit_upvotes,
-            top_reddit_comments,
-            tiktok_signal,
-            discord_signal,
-            platform_reviews_7d,
-            updated_at
+            candidate_id, youtube_videos_7d, top_youtube_views, top_youtube_comments,
+            has_influencer_video, reddit_posts_7d, top_reddit_upvotes, top_reddit_comments,
+            tiktok_signal, discord_signal, platform_reviews_7d, updated_at
           )
           VALUES (
-            ${candidateId},
-            ${social.youtubeVideos7d || 0},
-            ${social.topYoutubeViews || 0},
-            ${social.topYoutubeComments || 0},
-            ${social.hasInfluencerVideo || false},
-            ${social.redditPosts7d || 0},
-            ${social.topRedditUpvotes || 0},
-            ${social.topRedditComments || 0},
-            ${social.tiktokSignal || false},
-            ${social.discordSignal || false},
-            ${social.platformReviews7d || 0},
-            NOW()
+            ${candidateId}, ${social.youtubeVideos7d || 0}, ${social.topYoutubeViews || 0},
+            ${social.topYoutubeComments || 0}, ${social.hasInfluencerVideo || false},
+            ${social.redditPosts7d || 0}, ${social.topRedditUpvotes || 0}, ${social.topRedditComments || 0},
+            ${social.tiktokSignal || false}, ${social.discordSignal || false}, ${social.platformReviews7d || 0}, NOW()
           )
           ON CONFLICT (candidate_id) DO UPDATE SET
             youtube_videos_7d = EXCLUDED.youtube_videos_7d,
@@ -183,7 +147,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(405).json({ error: 'Method not allowed' })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Candidate error:', error)
     return res.status(500).json({ error: error.message })
   }
