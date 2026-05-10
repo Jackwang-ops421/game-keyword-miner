@@ -171,13 +171,13 @@ export default function CandidateDetail() {
           <InfoTab candidate={candidate} setCandidate={setCandidate} />
         )}
         {activeTab === 'social' && (
-          <SocialTab candidate={candidate} setCandidate={setCandidate} />
+          <SocialTab />
         )}
         {activeTab === 'trend' && (
-          <TrendTab candidate={candidate} setCandidate={setCandidate} />
+          <TrendTab />
         )}
         {activeTab === 'serp' && (
-          <SerpTab candidate={candidate} setCandidate={setCandidate} />
+          <SerpTab />
         )}
       </div>
     </div>
@@ -296,7 +296,7 @@ function InfoTab({ candidate, setCandidate }: { candidate: Candidate; setCandida
   )
 }
 
-function SocialTab({ candidate, setCandidate }: { candidate: Candidate; setCandidate: (c: Candidate) => void }) {
+function SocialTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -354,7 +354,7 @@ function SocialTab({ candidate, setCandidate }: { candidate: Candidate; setCandi
   )
 }
 
-function TrendTab({ candidate, setCandidate }: { candidate: Candidate; setCandidate: (c: Candidate) => void }) {
+function TrendTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -384,7 +384,7 @@ function TrendTab({ candidate, setCandidate }: { candidate: Candidate; setCandid
   )
 }
 
-function SerpTab({ candidate, setCandidate }: { candidate: Candidate; setCandidate: (c: Candidate) => void }) {
+function SerpTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">

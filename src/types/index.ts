@@ -27,8 +27,9 @@ export interface Candidate {
   notes?: string
   socialPropagationPath?: string
   trendLatencyDays?: number
+  scoreTotal?: number
+  decision?: string
   createdAt: string
-  updatedAt: string
 }
 
 // SocialMetrics 社媒指标

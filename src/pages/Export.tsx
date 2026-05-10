@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { getCandidates, exportCSV } from '@/api'
+import { getCandidates } from '@/api'
 import { calculateKeywordScore, getDecisionLabel } from '@/utils/score'
 
 export default function Export() {
   const [loading, setLoading] = useState(false)
-  const [exportType, setExportType] = useState<'csv' | 'markdown'>('csv')
 
   const handleExportCSV = async () => {
     setLoading(true)

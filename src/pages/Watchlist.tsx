@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { getCandidates, syncPlatform } from '@/api'
-import { calculateKeywordScore, getDecisionLabel } from '@/utils/score'
+import { getCandidates } from '@/api'
+import { getDecisionLabel } from '@/utils/score'
 import type { Candidate } from '@/types'
 
 export default function Watchlist() {
