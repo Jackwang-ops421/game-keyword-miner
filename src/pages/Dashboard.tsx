@@ -102,13 +102,21 @@ export default function Dashboard() {
           <p className="text-gray-500 mt-1">H5小游戏出海新词挖掘工作台</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => handleSync('itch.io')}
+          <select
+            onChange={(e) => {
+              if (e.target.value) handleSync(e.target.value)
+            }}
             disabled={syncing}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition"
+            defaultValue=""
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition border-none"
           >
-            {syncing && syncPlatformName === 'itch.io' ? '同步中...' : '🔄 同步新游戏'}
-          </button>
+            <option value="" disabled>🔄 同步新游戏</option>
+            <option value="itch.io">itch.io</option>
+            <option value="Scratch">Scratch</option>
+            <option value="Game Jolt">Game Jolt</option>
+            <option value="Newgrounds">Newgrounds</option>
+            <option value="Similarweb">Similarweb (关键词)</option>
+          </select>
         </div>
       </div>
 
@@ -125,7 +133,7 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
         <h3 className="font-medium text-gray-700 mb-3">快速同步</h3>
         <div className="flex flex-wrap gap-2">
-          {['itch.io', 'Scratch', 'Game Jolt'].map(platform => (
+          {['itch.io', 'Scratch', 'Game Jolt', 'Similarweb'].map(platform => (
             <button
               key={platform}
               onClick={() => handleSync(platform)}
