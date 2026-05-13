@@ -17,7 +17,110 @@ export async function syncPlatform(platform: string) {
   let errorMessage = ''
 
   try {
-    if (platform.toLowerCase().includes('itch')) {
+    const p = platform.toLowerCase()
+
+    // Scratch API - MIT官方公开API
+    if (p.includes('scratch')) {
+      try {
+        const apiUrl = 'https://api.scratch.mit.edu/explore/projects?q=games&sort=recent&limit=20'
+        const response = await fetch(apiUrl, {
+          headers: { 'User-Agent': 'GameKeywordMiner/1.0' }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const projects = data.projects || []
+
+          itemsFound = projects.length
+
+          for (const proj of projects) {
+            const title = proj.title?.trim()
+            if (!title || title.length < 2 || title.length > 200) continue
+
+            const normalizedName = title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
+
+            const existing = await sql`SELECT id FROM candidates WHERE normalized_name = ${normalizedName} AND source_platform = 'Scratch' LIMIT 1`
+            if (existing.length > 0) {
+              itemsDuplicated++
+              continue
+            }
+
+            const sourceUrl = proj.url || `https://scratch.mit.edu/projects/${proj.id}`
+
+            await sql`
+              INSERT INTO candidates (
+                name, original_title, normalized_name, source_platform, source_url,
+                thumbnail, author, published_at, discovered_at,
+                can_embed, playable_in_browser, status, recency_level, time_confidence
+              ) VALUES (
+                ${title}, ${title}, ${normalizedName}, 'Scratch', ${sourceUrl},
+                ${proj.thumbnail_url || null}, ${proj.creator?.username || null},
+                ${proj.history?.created ? new Date(proj.history.created) : null}, NOW(),
+                true, true, 'pending', '1-7d', 'high'
+              )
+            `
+            itemsAdded++
+          }
+        }
+      } catch (e: any) {
+        errorMessage = e.message
+      }
+    }
+
+    // Newgrounds API
+    else if (p.includes('newgrounds')) {
+      try {
+        // Newgrounds browse RSS feed
+        const feedUrl = 'https://www.newgrounds.com/browse/games/rss'
+        const response = await fetch(feedUrl, {
+          headers: {
+            'User-Agent': 'GameKeywordMiner/1.0',
+            'Accept': 'application/rss+xml, application/xml, text/xml'
+          }
+        })
+
+        if (response.ok) {
+          const text = await response.text()
+          const items = text.match(/<item>[\s\S]*?<\/item>/gi) || []
+          itemsFound = items.length
+
+          for (const item of items.slice(0, 20)) {
+            const titleMatch = /<title><!\[CDATA\[(.*?)\]\]><\/title>/i.exec(item) || /<title>(.*?)<\/title>/i.exec(item)
+            const linkMatch = /<link>(.*?)<\/link>/i.exec(item)
+            const pubMatch = /<pubDate>(.*?)<\/pubDate>/i.exec(item)
+
+            const title = titleMatch?.[1]?.trim()
+            if (!title || title.length < 2 || title.length > 200) continue
+
+            const normalizedName = title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
+
+            const existing = await sql`SELECT id FROM candidates WHERE normalized_name = ${normalizedName} AND source_platform = 'Newgrounds' LIMIT 1`
+            if (existing.length > 0) {
+              itemsDuplicated++
+              continue
+            }
+
+            await sql`
+              INSERT INTO candidates (
+                name, original_title, normalized_name, source_platform, source_url,
+                published_at, discovered_at, can_embed, playable_in_browser,
+                status, recency_level, time_confidence
+              ) VALUES (
+                ${title}, ${title}, ${normalizedName}, 'Newgrounds', ${linkMatch?.[1] || ''},
+                ${pubMatch?.[1] ? new Date(pubMatch[1]) : null}, NOW(),
+                true, true, 'pending', '1-7d', 'high'
+              )
+            `
+            itemsAdded++
+          }
+        }
+      } catch (e: any) {
+        errorMessage = e.message
+      }
+    }
+
+    // itch.io (legacy - feed no longer works)
+    else if (p.includes('itch')) {
       try {
         const feedUrl = 'https://itch.io/games/newest/atom'
         const response = await fetch(feedUrl, {
