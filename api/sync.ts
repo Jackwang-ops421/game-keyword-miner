@@ -173,6 +173,58 @@ export async function syncPlatform(platform: string) {
       }
     }
 
+    // Similarweb: 查询平台关键词数据
+    // 获取访客搜索词，为后续评分提供数据支持
+    else if (p.includes('similarweb')) {
+      try {
+        const domains = ['scratch.mit.edu', 'itch.io', 'gamejolt.com', 'newgrounds.com']
+        for (const domain of domains) {
+          try {
+            const apiUrl = `https://data.similarweb.com/api/v1/data?domain=${domain}`
+            const resp = await fetch(apiUrl, {
+              headers: { 'User-Agent': 'GameKeywordMiner/1.0' }
+            })
+
+            if (resp.ok) {
+              const data = await resp.json()
+              const keywords = data.TopKeywords || []
+
+              for (const kw of keywords.slice(0, 50)) {
+                const keyword = kw.Value?.trim()
+                const searchVolume = kw.SearchVolume
+
+                if (!keyword || keyword.length < 2) continue
+
+                const normalizedName = keyword.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
+
+                const existing = await sql`SELECT id FROM candidates WHERE normalized_name = ${normalizedName} AND source_platform = 'Similarweb' LIMIT 1`
+                if (existing.length > 0) continue
+
+                await sql`
+                  INSERT INTO candidates (
+                    name, original_title, normalized_name, source_platform, source_url,
+                    discovered_at, can_embed, playable_in_browser,
+                    status, recency_level, time_confidence, notes
+                  ) VALUES (
+                    ${keyword}, ${keyword}, ${normalizedName}, 'Similarweb', ${`https://www.google.com/search?q=${encodeURIComponent(keyword)}`},
+                    NOW(), true, true, 'pending', '1-7d', 'high',
+                    ${`搜索量: ${searchVolume || 'N/A'}`}
+                  )
+                `
+                itemsAdded++
+              }
+              itemsFound += keywords.length
+            }
+          } catch (e: any) {
+            // 继续下一个域名
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      } catch (e: any) {
+        errorMessage = e.message
+      }
+    }
+
     await sql`
       UPDATE platforms SET
         last_sync_at = NOW(),
